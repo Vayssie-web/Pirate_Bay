@@ -5,6 +5,7 @@ namespace App\Controller;
 use App\Entity\Boat;
 use App\Form\BoatType;
 use App\Repository\BoatRepository;
+use App\Service\MapManager;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
@@ -21,44 +22,51 @@ class BoatController extends AbstractController
      * Move the boat to coord x,y
      * @Route("/move/{x}/{y}", name="moveBoat", requirements={"x"="\d+", "y"="\d+"}))
      */
-    public function moveBoat(int $x, int $y, BoatRepository $boatRepository, EntityManagerInterface $em): Response
+    public function moveBoat(int $x, int $y, BoatRepository $boatRepository, EntityManagerInterface $em, MapManager $mapManager): Response
     {
         $boat = $boatRepository->findOneBy([]);
         $boat->setCoordX($x);
         $boat->setCoordY($y);
 
-        $em->flush();
+        if ($mapManager->tileExists($boat->getCoordX(), $boat->getCoordY())) {;
+            $em->flush();
+        } else {
+            $this->addFlash('danger','you\'re going outside the world');
+        }
 
         return $this->redirectToRoute('map');
     }
     /**
      * Move the boat in direction
-     * @Route("/direction", name="moveDirection", requirements={"x"="\d+", "y"="\d+"}))
+     * @Route("/direction/{direction}", name="moveDirection", requirements={"direction"="[NSEW]"}))
      */  
-    public function moveDirection(string $direction, int $x, int $y, BoatRepository $boatRepository, EntityManagerInterface $em)
+    public function moveDirection(string $direction,  BoatRepository $boatRepository, EntityManagerInterface $em, MapManager $mapManager)
     {
         $boat = $boatRepository->findOneBy([]);
-        switch ($direction){
-            case 'N':
-                $boat->setCoordX (+1);
-            break;
-            case 'S':
-                $boat->setCoordX (-1);
-            break;
-            case 'E':
-                $boat->setCoordY (+1);
-            break;
-            case 'W':
-                $boat->setCoordY (-1);
-            break;
-            default:
-                //error
-            break;
+        
+        $x = $boat->getCoordX();
+        $y = $boat->getCoordY();
+        
+        switch($direction) {
+            case 'N' :
+                $boat->setCoordY($y - 1);
+                break;
+            case 'S' :
+                $boat->setCoordY($y + 1);
+                break;
+            case 'E' :
+                $boat->setCoordX($x + 1);
+                break;
+            case 'W' :
+                $boat->setCoordX($x - 1);
+                break;
         }
-        $boat->setCoordX($x);
-        $boat->setCoordY($y);
 
+        if ($mapManager->tileExists($boat->getCoordX(), $boat->getCoordY())) {;
         $em->flush();
+        } else {
+            $this->addFlash('danger','you\'re going outside the world');
+        }
 
         return $this->redirectToRoute('map');        
     }
